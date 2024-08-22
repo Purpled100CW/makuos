@@ -1,50 +1,49 @@
-# Makefile for kernel
-
-# Compiler, assembler, and linker
+# Define the compiler and flags
 CC = i686-elf-gcc
 AS = i686-elf-as
-LD = i686-elf-ld
-CFLAGS = -std=gnu99 -ffreestanding -O2 -Wall -Wextra
-LDFLAGS = -ffreestanding -O2 -nostdlib -lgcc
+LD = i686-elf-gcc  # Use gcc for linking
+CFLAGS = -ffreestanding -m32 -Wall -Wextra -nostdlib -nostartfiles -nodefaultlibs -Iinclude
+LDFLAGS = -T linker/linker.ld -nostdlib -nostartfiles
 
-# Directories
+QEMU = qemu-system-i386
+
+# Define directories
 SRC_DIR = kernel
-INCLUDE_DIR = kernel/include
-OBJ_DIR = obj
-BIN_DIR = bin
+OBJ_DIR = build
+BUILD_DIR = build
 
-# Output binary
-KERNEL_BIN = $(BIN_DIR)/kernel.bin
+# Define the source files and object files
+C_SRC = $(wildcard $(SRC_DIR)/*.c)
+ASM_SRC = $(wildcard $(SRC_DIR)/*.s)
+SRC = $(C_SRC) $(ASM_SRC)
+OBJ = $(addprefix $(OBJ_DIR)/, $(notdir $(C_SRC:.c=.o) $(ASM_SRC:.s=.o)))
 
-# Source files
-KERNEL_SOURCES = $(wildcard $(SRC_DIR)/*.c $(SRC_DIR)/*/*.c)
-KERNEL_OBJECTS = $(patsubst $(SRC_DIR)/%.c, $(OBJ_DIR)/%.o, $(KERNEL_SOURCES))
-BOOT_OBJECT = $(OBJ_DIR)/boot.o
+# Define header files
+HEADERS = $(wildcard include/kernel/*.h)
 
-# All targets
-all: $(KERNEL_BIN)
+# Define the output file
+KERNEL = $(BUILD_DIR)/kernel.bin
 
-# Assemble boot.s
-$(BOOT_OBJECT): boot.s
+# Default target
+all: $(KERNEL)
+
+# Rule to build the kernel binary
+$(KERNEL): $(OBJ)
+	$(CC) $(LDFLAGS) -o $@ $(OBJ)
+
+# Rule to compile C source files
+$(OBJ_DIR)/%.o: $(SRC_DIR)/%.c $(HEADERS)
 	@mkdir -p $(OBJ_DIR)
-	$(AS) boot.s -o $(BOOT_OBJECT)
+	$(CC) $(CFLAGS) -c $< -o $@
 
-# Compile kernel
-$(OBJ_DIR)/%.o: $(SRC_DIR)/%.c
+# Rule to assemble assembly source files
+$(OBJ_DIR)/%.o: $(SRC_DIR)/%.s
 	@mkdir -p $(OBJ_DIR)
-	$(CC) $(CFLAGS) -I$(INCLUDE_DIR) -c $< -o $@
+	$(AS) -o $@ $<
 
-# Link kernel
-$(KERNEL_BIN): $(BOOT_OBJECT) $(KERNEL_OBJECTS)
-	@mkdir -p $(BIN_DIR)
-	$(LD) -T linker.ld -o $(KERNEL_BIN) $(BOOT_OBJECT) $(KERNEL_OBJECTS) $(LDFLAGS)
-
-# Clean files
+# Clean rule
 clean:
-	rm -rf $(OBJ_DIR) $(BIN_DIR)
+	rm -rf $(OBJ_DIR) $(KERNEL)
 
-# Run kernel in QEMU
-run: all
-	qemu-system-i386 -kernel $(KERNEL_BIN)
-
-.PHONY: all clean run
+qemu:
+	$(QEMU) -kernel $(BUILD_DIR)/kernel.bin
