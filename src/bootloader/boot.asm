@@ -77,6 +77,43 @@ main:
 .halt:
     jmp .halt
 
+;
+; Some disk routines
+;
+
+;
+; Converts an LBA address to a CHS address
+; Parameters
+;   - ax: LBA address
+; Returns:
+;   - cx [bits 0-5]: sector number
+;   - cx [bits 6-15]: cyclinder
+;   - dh: head
+;   
+lba_to_chs:
+    push ax
+    push dx
+
+    xor dx, dx  ; dx = 0
+    div word [bdb_sectors_per_track]
+
+    inc dx
+    mov cx, dx
+    div word [bdb_heads]
+
+    mov dh, dl
+    mov ch, al
+    shl ah, 6
+    or cl, ah
+
+    pop ax
+    mov dl, al
+    pop dx
+    ret
+
+
+disk_read:
+    
 msg_hello: db 'Hello mf world!', ENDL, 0
 
 times 510-($-$$) db 0 
