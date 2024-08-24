@@ -113,6 +113,21 @@ lba_to_chs:
 
 
 disk_read:
+    push cx
+    call lba_to_chs
+    pop ax
+
+    mov ah, 02h
+    mov di, 3
+.retry:
+    pusha
+    stc
+    int 13h
+    jnc .done
+    popa
+    
+.done:
+
     
 msg_hello: db 'Hello mf world!', ENDL, 0
 
